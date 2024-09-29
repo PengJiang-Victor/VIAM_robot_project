@@ -50,7 +50,7 @@ async def base_search(base, vel, spinNum, my_detector, camera_name):
     for _ in range(6):
         await base.spin(spinNum, vel)
         await asyncio.sleep(1)
-        detections = await my_detcaector.get_detections_from_camera(camera_name)
+        detections = await my_detector.get_detections_from_camera(camera_name)
         if detections:
             return detections
             
