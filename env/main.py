@@ -49,8 +49,8 @@ def leftOrRight(detections, midpoint):
 async def base_search(base, vel, spinNum, straightNum, my_detector, camera_name):
     for _ in range(6):
         await base.spin(spinNum, vel)
-        await base.move_straight(straightNum, vel)
-        await asyncio.sleep(1)
+        # await base.move_straight(straightNum, vel)
+        await asyncio.sleep(0.1)
         detections = await my_detector.get_detections_from_camera(camera_name)
         if detections:
             return detections
@@ -61,7 +61,7 @@ async def main():
     spinNum = 10         # when turning, spin the motor this much
     straightNum = 50    # when going straight, spin motor this much
     numCycles = 1000      # run the loop X times
-    vel = 500            # go this fast when moving motor
+    vel = 1000            # go this fast when moving motor
 
     memory_direction = None
     count = 0
@@ -88,10 +88,9 @@ async def main():
             answer = leftOrRight(detections, pil_frame.size[0]/2)
             memory_direction = answer
             count = 0
-
             if answer == 0:
                 print("left")
-                await base.spin(spinNum, vel)     # CCW is positive
+                await base.spin(spinNum, vel)     
                 await base.move_straight(straightNum, vel)
             if answer == 1:
                 print("center")
@@ -101,18 +100,34 @@ async def main():
                 await base.spin(-spinNum, vel)
         # If nothing is detected, nothing moves
         else:
-            print("nothing_detected")
-            cycles = 3
+            cycles = 4
             if count < cycles and memory_direction is not None:
+                print(f"Move according to last direction: {memory_direction}")
+                # left
                 if memory_direction == 0:
                     await base.spin(spinNum, vel)
                 elif memory_direction == 1:
                     await base.move_straight(straightNum, vel)
+                # right
                 elif memory_direction == 2:
                     await base.spin(-spinNum, vel)
                 count += 1
+            # spin towards opposite of memory_direction that we stored.
+            elif memory_direction is not None: 
+                print(f"Move according to opposite of last direction: {memory_direction}")
+                if memory_direction == 0:
+                    detections = await base_search(base, vel, -spinNum, straightNum, my_detector, camera_name)
+                # If last direction points to center, do a counterclock wise search
+                elif memory_direction == 1:
+                    detections = await base_search(base, vel, spinNum, straightNum, my_detector, camera_name)
+                elif memory_direction == 2:
+                    detections = await base_search(base, vel, spinNum, straightNum, my_detector, camera_name)
+                if detections:
+                    answer = leftOrRight(detections, pil_frame.size[0] / 2)
+                    memory_direction = answer
+            # default search left for 6 times and go straight 1 time  
             else:
-                print("re-search_nothing_detected")
+                print("No detection ... executing default search")
                 detections = await base_search(base, vel, spinNum, straightNum, my_detector, camera_name)
                 if detections:
                     answer = leftOrRight(detections, pil_frame.size[0] / 2)
