@@ -68,6 +68,9 @@ async def main():
 
     # Connect to robot client and set up components
     machine = await connect()
+    print(machine.resource_names)
+    
+    
     base = Base.from_robot(machine, g_my_base)
     camera_name = g_camera_name
     camera = Camera.from_robot(machine, g_camera_name)
