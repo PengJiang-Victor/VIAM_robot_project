@@ -35,6 +35,7 @@ async def move_to_position(base, slam_service, target_x, target_y, target_theta,
             break
 
         try:
+            print(f"Spin {angle_to_rotate} degrees")
             await base.spin(velocity=SPIN_VELOCITY, angle=int(angle_to_rotate))
         except Exception as e:
             print(f"Error: {e} -- Continue.")
