@@ -5,7 +5,8 @@
 
 ## target
 1. Generate a map, so Lidar know the direction and position clearly. 
-2. Run 
+2. Run a shape like sqaure, circle.
+3. come out with a turn around and move function (input: th) 
 
 
 ## easy access to the timestamp
