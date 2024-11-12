@@ -12,7 +12,7 @@ BASE = 'viam_base'
 import math
 import asyncio
 
-async def move_to_position(base, slam_service, target_x, target_y, target_theta, velocity=500, step_size=150, tolerance=200):
+async def move_to_position(base, slam_service, target_x, target_y, target_theta, velocity=100, step_size=150, tolerance=150):
     while True:
         current_position = await slam_service.get_position()
         current_x = current_position.x
@@ -31,26 +31,20 @@ async def move_to_position(base, slam_service, target_x, target_y, target_theta,
             break
 
         try:
-            print(f"Rotating by {angle_to_rotate:.2f} degrees to face the target...")
-            await base.spin(velocity=100, angle=int(angle_to_rotate))
+            await base.spin(velocity=50, angle=int(angle_to_rotate))
         except Exception as e:
-            print(f"Error during rotation: {e}. Continuing to the next step...")
+            print(f"Error: {e} -- Continue.")
             continue
 
-        # Move a step closer to the target
         distance_to_move = min(step_size, distance_to_target)
-        print(f"Moving straight for {distance_to_move:.2f}mm towards the target...")
+        print(f"Moving {distance_to_move:.2f}mm")
         await base.move_straight(velocity=int(velocity), distance=int(distance_to_move))
 
-        # Allow some delay to ensure the robot updates position correctly
-        await asyncio.sleep(0.1)
-
-    # Final adjustment to align with the exact target orientation
-    final_yaw_adjustment = target_theta - current_theta
-    final_yaw_adjustment = (final_yaw_adjustment + 180) % 360 - 180
-    print(f"Adjusting final orientation by {final_yaw_adjustment:.2f} degrees...")
-    await base.spin(velocity=100, angle=int(final_yaw_adjustment))
-    print("Reached the target position.")
+    final_adj = target_theta - current_theta
+    final_adj = (final_adj + 180) % 360 - 180
+    print(f"final orientation by {final_adj:.2f}")
+    await base.spin(velocity=50, angle=int(final_adj))
+    print("Finished.")
 
 async def connect():
     opts = RobotClient.Options.with_api_key(api_key=API_KEY, api_key_id=API_KEYID)
@@ -58,33 +52,29 @@ async def connect():
 
 async def move_in_square(base):
     for _ in range(4):
-        await base.move_straight(velocity=500, distance=300)
-        await base.spin(velocity=500, angle=90)
-
+        await base.move_straight(velocity=100, distance=300)
+        await base.spin(velocity=50, angle=90)
 
 async def main():
+    # inti variables.
     robot = await connect()
     base = Base.from_robot(robot, BASE)
     slam_service = SLAMClient.from_robot(robot, SLAM_SERVICE_NAME)
 
-    original_position = await slam_service.get_position()
+    src_pos = await slam_service.get_position()
 
     for i in range(5): 
         await move_in_square(base)
-
         await asyncio.sleep(5)
-        
-        check_point = await slam_service.get_position()
-        
-        if (abs(check_point.x - original_position.x) < 150) or (abs(check_point.y - original_position.y) < 150) or (abs(check_point.theta - original_position.theta) < 3):
-
+        dst_pos = await slam_service.get_position()
+        if (abs(dst_pos.x - src_pos.x) < 150) or (abs(dst_pos.y - src_pos.y) < 150) or (abs(dst_pos.theta - src_pos.theta) < 3):
             print("Returning to the original position...")
             await move_to_position(
                 base,
                 slam_service,
-                target_x=original_position.x,
-                target_y=original_position.y,
-                target_theta=original_position.theta,
+                target_x=src_pos.x,
+                target_y=src_pos.y,
+                target_theta=src_pos.theta,
             )
 
     await robot.close()
