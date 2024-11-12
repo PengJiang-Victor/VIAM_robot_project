@@ -68,14 +68,13 @@ async def main():
 
     # retreive the original position 
     src_pos = await slam_service.get_position()
-    for i in range(5): 
+    
+    for i in range(4): 
         await move_in_square(base)
-        
         # sleep for a while to manually move robot  
         await asyncio.sleep(5)
         dst_pos = await slam_service.get_position()
         if (abs(dst_pos.x - src_pos.x) < 150) or (abs(dst_pos.y - src_pos.y) < 150) or (abs(dst_pos.theta - src_pos.theta) < 3):
-            print("Returning to the original position...")
             await move_to_position(
                 base,
                 slam_service,
