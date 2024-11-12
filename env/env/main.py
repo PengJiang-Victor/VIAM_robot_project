@@ -9,33 +9,47 @@ API_ADDR = 'machine-main.y3r5oijw6x.viam.cloud'
 SLAM_SERVICE_NAME = 'slam-1'
 BASE = 'viam_base'
 
-async def move_to_position(base, slam_service, target_x, target_y, target_theta, velocity=500):
-    current_position = await slam_service.get_position()
-    current_x = current_position.x
-    current_y = current_position.y
-    current_theta = current_position.theta
+import math
+import asyncio
 
-    delta_x = target_x - current_x
-    delta_y = target_y - current_y
+async def move_to_position(base, slam_service, target_x, target_y, target_theta, velocity=500, step_size=150, tolerance=200):
+    while True:
+        current_position = await slam_service.get_position()
+        current_x = current_position.x
+        current_y = current_position.y
+        current_theta = current_position.theta
 
-    distance = math.sqrt(delta_x**2 + delta_y**2)
+        delta_x = target_x - current_x
+        delta_y = target_y - current_y
+        distance_to_target = math.sqrt(delta_x**2 + delta_y**2)
 
-    target_angle = math.degrees(math.atan2(delta_y, delta_x))  # Angle to target in degrees
-    angle_to_rotate = target_angle - current_theta
+        target_angle = math.degrees(math.atan2(delta_y, delta_x))
+        angle_to_rotate = target_angle - current_theta
+        angle_to_rotate = (angle_to_rotate + 180) % 360 - 180
+        
+        if distance_to_target < tolerance:
+            break
 
-    angle_to_rotate = (angle_to_rotate + 180) % 360 - 180
+        try:
+            print(f"Rotating by {angle_to_rotate:.2f} degrees to face the target...")
+            await base.spin(velocity=100, angle=int(angle_to_rotate))
+        except Exception as e:
+            print(f"Error during rotation: {e}. Continuing to the next step...")
+            continue
 
-    print(f"Rotating by {angle_to_rotate:.2f} degrees to face the target...")
-    await base.spin(velocity=100, angle=int(-angle_to_rotate))  # Ensure angle is an integer
+        # Move a step closer to the target
+        distance_to_move = min(step_size, distance_to_target)
+        print(f"Moving straight for {distance_to_move:.2f}mm towards the target...")
+        await base.move_straight(velocity=int(velocity), distance=int(distance_to_move))
 
-    print(f"Moving straight for {distance:.2f}mm to the target...")
-    await base.move_straight(velocity=int(velocity), distance=int(distance))  # Convert both to integers
+        # Allow some delay to ensure the robot updates position correctly
+        await asyncio.sleep(0.1)
 
-    final_yaw_adjustment = target_theta - (current_theta + angle_to_rotate)
+    # Final adjustment to align with the exact target orientation
+    final_yaw_adjustment = target_theta - current_theta
     final_yaw_adjustment = (final_yaw_adjustment + 180) % 360 - 180
     print(f"Adjusting final orientation by {final_yaw_adjustment:.2f} degrees...")
-    await base.spin(velocity=100, angle=int(final_yaw_adjustment))  # Ensure angle is an integer
-
+    await base.spin(velocity=100, angle=int(final_yaw_adjustment))
     print("Reached the target position.")
 
 async def connect():
@@ -44,7 +58,7 @@ async def connect():
 
 async def move_in_square(base):
     for _ in range(4):
-        await base.move_straight(velocity=500, distance=500)
+        await base.move_straight(velocity=500, distance=300)
         await base.spin(velocity=500, angle=90)
 
 
@@ -52,27 +66,26 @@ async def main():
     robot = await connect()
     base = Base.from_robot(robot, BASE)
     slam_service = SLAMClient.from_robot(robot, SLAM_SERVICE_NAME)
-    
-    current_position = await slam_service.get_position()
-    current_theta = current_position.theta
-    print(current_theta)
 
     original_position = await slam_service.get_position()
 
-    # while True: 
-    await move_in_square(base)
+    for i in range(5): 
+        await move_in_square(base)
 
-    print("Pause... Please move it ")
-    await asyncio.sleep(5)
+        await asyncio.sleep(5)
+        
+        check_point = await slam_service.get_position()
+        
+        if (abs(check_point.x - original_position.x) < 150) or (abs(check_point.y - original_position.y) < 150) or (abs(check_point.theta - original_position.theta) < 3):
 
-    print("Returning to the original position...")
-    await move_to_position(
-        base,
-        slam_service,
-        target_x=original_position.x,
-        target_y=original_position.y,
-        target_theta=original_position.theta,
-    )
+            print("Returning to the original position...")
+            await move_to_position(
+                base,
+                slam_service,
+                target_x=original_position.x,
+                target_y=original_position.y,
+                target_theta=original_position.theta,
+            )
 
     await robot.close()
     
