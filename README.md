@@ -5,6 +5,7 @@
 
 ## Proj2 
 
+<<<<<<< HEAD
 ### target
 1. Generate a map, so Lidar know the direction and position clearly 
 2. Choose shape like sqaure, circle 
@@ -22,6 +23,11 @@ Some things to remember:
 2024/11/12 13:14:30:AM
 -
 2024/11/12 13:18:30:AM
+=======
+## target
+1. Generate a map, so Lidar know the direction and position clearly. 
+2. Run a course (we choose )
+>>>>>>> 10fe6cf (aa)
 
 
 ### Step2: run algorithm 
