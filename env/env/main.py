@@ -13,7 +13,7 @@ BASE = 'viam_base'
 
 # ---------------------------------------------Constant---------------------------------------------
 SPIN_VELOCITY=50
-GO_VELOCITY=100
+GO_VELOCITY=50
 
 # ---------------------------------------------Func---------------------------------------------
 async def move_to_position(base, slam_service, target_x, target_y, target_theta, velocity=GO_VELOCITY, step_size=150, tolerance=150):
@@ -23,8 +23,8 @@ async def move_to_position(base, slam_service, target_x, target_y, target_theta,
         current_y = current_position.y
         current_theta = current_position.theta
 
-        delta_x = target_x - current_x
-        delta_y = target_y - current_y
+        delta_x = abs(target_x - current_x)
+        delta_y = abs(target_y - current_y)
         distance_to_target = math.sqrt(delta_x**2 + delta_y**2)
 
         target_angle = math.degrees(math.atan2(delta_y, delta_x))
@@ -57,7 +57,7 @@ async def connect():
 
 async def move_in_square(base):
     for _ in range(4):
-        await base.move_straight(velocity=GO_VELOCITY, distance=300)
+        await base.move_straight(velocity=GO_VELOCITY, distance=500)
         await base.spin(velocity=SPIN_VELOCITY, angle=90)
 
 # ---------------------------------------------Main ---------------------------------------------
@@ -75,7 +75,9 @@ async def main():
         # sleep for a while to manually move robot  
         await asyncio.sleep(5)
         dst_pos = await slam_service.get_position()
-        if (abs(dst_pos.x - src_pos.x) < 150) or (abs(dst_pos.y - src_pos.y) < 150) or (abs(dst_pos.theta - src_pos.theta) < 3):
+        
+        
+        if (abs(dst_pos.x - src_pos.x) > 300) or (abs(dst_pos.y - src_pos.y) > 300) or (abs(dst_pos.theta - src_pos.theta) > 3):
             await move_to_position(
                 base,
                 slam_service,
@@ -83,6 +85,8 @@ async def main():
                 target_y=src_pos.y,
                 target_theta=src_pos.theta,
             )
+            print(f"src_pos: {src_pos}")
+            print(f"dst_pos: {dst_pos}")
 
     await robot.close()
     
